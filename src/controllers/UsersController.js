@@ -1,29 +1,16 @@
-const { hash,compare } = require('bcrypt');
+const { hash, compare } = require('bcrypt');
 const AppError = require('../utils/AppError');
-
+const UserRepository = require('../repositories/UserRepository')
 const sqliteConnection = require("../database/sqlite");
-const e = require('express');
-const { use } = require('express/lib/router');
+const UserCreateService = require('../services/UserCreateService');
 
 class UsersController {
     async create(request, response) {
         const { name, email, password } = request.body;
 
-        const database = await sqliteConnection();
-
-        const checkUserExists = await database.get(`SELECT * FROM users WHERE email = (?)`, [email]);
-
-        if (checkUserExists) {
-            throw new AppError('Este e-mail ja está em uso!');
-        }
-
-        const hashedPassword = await hash(password, 8)
-
-        await database.run(
-            "INSERT INTO users ( name, email, password) values( ?, ? , ?)",
-            [name, email, hashedPassword]
-        )
-    
+        const userRepository = new UserRepository();
+        const userCreateService = new UserCreateService(userRepository);
+        await userCreateService.execute({ name, email, password });
 
         return response.status(201).json();
     };
@@ -50,14 +37,14 @@ class UsersController {
         user.email = email ?? user.email;
 
 
-        if(password && !old_password){
+        if (password && !old_password) {
             throw new AppError("Voce precisa informar a senha antiga para definir a nova senha!");
         }
 
-        if(password && old_password){
+        if (password && old_password) {
             const checkOldPassword = await compare(old_password, user.password);
 
-            if(!checkOldPassword){
+            if (!checkOldPassword) {
                 throw new AppError("Senha antiga não está correta")
             }
 
